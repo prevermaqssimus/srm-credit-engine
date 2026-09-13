@@ -107,3 +107,10 @@ mas esqueceu de criar o `application.properties` — o arquivo que na
 verdade contém o valor real da taxa (`pricing.base-rate=0.01`). Sem ele, a
 configuração "externalizada" não tinha de onde ler nada. Percebi a falta e
 pedi a correção antes de commitar.
+
+Caso concreto em que a IA errou
+
+A IA sugeriu commitar o Passo 3 (teste vermelho) sozinho, numa branch própria, antes das outras peças existirem. Identifiquei que isso não funcionaria — o Passo 3 sozinho nunca compilaria, deixando o CI quebrado sem necessidade. Propus a solução: entregar os Passos 3, 4 e 5 juntos, na mesma branch, já que são as peças que se completam.
+
+
+
