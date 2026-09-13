@@ -21,17 +21,19 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Passo 12 do plano: "Resultado esperado: duas chamadas com a mesma chave
  * geram apenas uma liquidação".
  *
- * IMPORTANTE (nota de correção): uma versão anterior deste arquivo, escrita
- * antes do SettlementService/repositórios existirem, usava o enum
- * inexistente "CurrencyCode" -- corrigido aqui para "Currency" (o enum real,
- * criado no Passo 1). Essa versão anterior tinha sido guardada fora de
- * src/ até este ponto do plano, quando as classes das quais ela depende
- * (SettlementService, ReceivableRepository, SettlementRepository) passaram
- * a existir de fato.
+ * CORREÇÃO (registrar em AI_USAGE.md como caso de erro identificado): a
+ * versão anterior deste teste usava settlementRepository.findAll() para
+ * contar os registros -- isso funciona quando este teste roda ISOLADO, mas
+ * falha quando a suíte completa roda em sequência, porque o banco H2 é
+ * COMPARTILHADO entre classes de teste na mesma execução do Maven (só o
+ * @Transactional de CADA CLASSE reverte o que ELA MESMA criou -- não limpa
+ * o que outras classes já commitaram antes). O SettlementConcurrencyTest
+ * (Passo 13), em especial, faz commits REAIS e definitivos (não pode usar
+ * @Transactional de teste, pois roda em threads separadas) -- esses
+ * registros "sobram" no banco quando os testes seguintes rodam.
  *
- * SPEC.md Secao 4, Criterio de Aceite 2 (Idempotencia): "Requisições
- * duplicadas (por retry de rede ou duplo clique) com a mesma chave de
- * idempotência não podem gerar novas liquidações".
+ * CORREÇÃO APLICADA: filtrar a contagem pelo receivableId deste teste
+ * especificamente, em vez de contar TODOS os settlements do banco inteiro.
  */
 @SpringBootTest
 @Transactional
@@ -54,19 +56,18 @@ class SettlementIdempotencyTest {
 
         String idempotencyKey = "chave-fixa-teste-idempotencia";
 
-        // Primeira chamada: processa de verdade.
         Settlement first = settlementService.settle(receivable.getId(), Currency.BRL, idempotencyKey);
-
-        // Segunda chamada, MESMA chave: deve ser um "replay", retornando o
-        // settlement já existente -- simula retry de rede ou duplo clique
-        // (o cenário exato do Anexo B do enunciado).
         Settlement second = settlementService.settle(receivable.getId(), Currency.BRL, idempotencyKey);
 
         assertThat(second.getId()).isEqualTo(first.getId());
 
-        // A prova definitiva: só existe 1 registro no banco para essa chave,
-        // nunca 2 -- é essa contagem que falharia se a checagem de
-        // idempotência não existisse (o bug do Anexo A).
-        assertThat(settlementRepository.findAll()).hasSize(1);
+        // CORRIGIDO: conta só os settlements DESTE receivable específico,
+        // não todos os settlements do banco (que pode ter "sobras" de
+        // outras classes de teste, como SettlementConcurrencyTest, que
+        // fazem commits reais e não são revertidos por @Transactional).
+        long countForThisReceivable = settlementRepository.findAll().stream()
+                .filter(s -> s.getReceivableId().equals(receivable.getId()))
+                .count();
+        assertThat(countForThisReceivable).isEqualTo(1);
     }
 }
