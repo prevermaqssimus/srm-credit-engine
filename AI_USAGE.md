@@ -114,3 +114,8 @@ A IA sugeriu commitar o Passo 3 (teste vermelho) sozinho, numa branch própria, 
 
 
 
+## Caso concreto em que a IA errou
+
+No Passo 5, a IA implementou o `PricingService` misturando duas responsabilidades — cálculo do valor presente e conversão de moeda — na mesma classe, violando o princípio de Responsabilidade Única (SOLID). Identifiquei o problema e pedi a extração da lógica de conversão para uma classe própria (`CurrencyConverter`), no Passo 9.
+
+
