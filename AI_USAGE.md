@@ -1,3 +1,6 @@
+
+
+
 Explique  o funcionamento e a logica por tras desse fragmento de conxto
 
 A SRM Asset é referência em fundos de investimento, especialmente FIDCs (Fundos de Investimento em Direitos Creditórios). Nossa operação envolve a aquisição de ativos (duplicatas, contratos, recebíveis) de empresas cedentes, provendo liquidez ao mercado.
@@ -96,4 +99,11 @@ avaliando risco do sacado + moeda + prazo para cada lote de duplicatas que chega
 
 Deságio é o desconto que se aplica ao valor de um título para comprá-lo (ou vendê-lo) antes do vencimento.
 
+## Caso concreto em que a IA errou
 
+Ao implementar o Passo 2 (configuração externalizada da taxa base), a IA
+criou o `PricingProperties.java` e ajustou o `CreditEngineApplication.java`,
+mas esqueceu de criar o `application.properties` — o arquivo que na
+verdade contém o valor real da taxa (`pricing.base-rate=0.01`). Sem ele, a
+configuração "externalizada" não tinha de onde ler nada. Percebi a falta e
+pedi a correção antes de commitar.
