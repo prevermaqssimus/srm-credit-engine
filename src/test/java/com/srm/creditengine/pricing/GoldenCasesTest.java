@@ -50,7 +50,10 @@ class GoldenCasesTest {
             // Taxa fixa em 1,00% a.m. -- valor exigido pela SPEC.md Secao 1
             // especificamente para reproduzir os golden cases (nao e o valor
             // de producao, que vem do application.properties via Spring).
-            new PricingProperties(new BigDecimal("0.01"))
+            new PricingProperties(new BigDecimal("0.01")),
+            // CurrencyConverter (Passo 9): extraido do PricingService, sem
+            // dependencia externa -- instanciado direto, igual as strategies.
+            new CurrencyConverter()
     );
 
     @Test

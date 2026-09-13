@@ -19,14 +19,17 @@ import java.math.RoundingMode;
  * Regras de arredondamento (SPEC.md Secao 1):
  *   - Calculos intermediarios usam MathContext de alta precisao (nunca double/float).
  *   - BRL: arredonda-se 1 UNICA VEZ, no valor presente final, HALF_EVEN, 2 casas.
- *   - Cross-currency (BRL -> USD): arredonda-se em DUAS etapas -- (1) valor
- *     presente em BRL arredondado ANTES da conversao, (2) valor convertido
- *     arredondado NOVAMENTE. Regra de negocio (reproduz golden case C3),
- *     nao detalhe livre de implementacao.
+ *   - Cross-currency (BRL -> USD): a conversao em si (2a etapa de
+ *     arredondamento) foi extraida para CurrencyConverter (Passo 9) --
+ *     responsabilidade unica: este service calcula o valor em BRL,
+ *     CurrencyConverter converte para outra moeda. Ver convertToUsd abaixo,
+ *     mantido como repasse fino (nao quebra a API usada pelos testes
+ *     existentes -- GoldenCasesTest, PricingServiceEdgeCasesTest).
  *
- * Responsabilidade unica (S de SOLID): orquestrar o CALCULO, delegando a
- * decisao de qual spread usar para a PricingStrategyFactory -- nunca decide
- * regra de negocio de spread aqui dentro (isso pertence as strategies).
+ * Responsabilidade unica (S de SOLID): orquestrar o CALCULO EM BRL,
+ * delegando a decisao de qual spread usar para a PricingStrategyFactory, e
+ * a conversao de moeda para o CurrencyConverter -- nunca mistura as três
+ * responsabilidades numa classe só.
  */
 @Service
 public class PricingService {
@@ -37,10 +40,13 @@ public class PricingService {
 
     private final PricingStrategyFactory strategyFactory;
     private final BigDecimal baseRate;
+    private final CurrencyConverter currencyConverter;
 
-    public PricingService(PricingStrategyFactory strategyFactory, PricingProperties pricingProperties) {
+    public PricingService(PricingStrategyFactory strategyFactory, PricingProperties pricingProperties,
+                           CurrencyConverter currencyConverter) {
         this.strategyFactory = strategyFactory;
         this.baseRate = pricingProperties.baseRate();
+        this.currencyConverter = currencyConverter;
     }
 
     /**
@@ -67,12 +73,13 @@ public class PricingService {
     }
 
     /**
-     * Converte um valor ja arredondado em BRL para USD, aplicando o
-     * arredondamento de segunda etapa (regra do golden case C3).
+     * Converte um valor ja arredondado em BRL para USD. A partir do Passo 9,
+     * apenas repassa para CurrencyConverter -- mantido aqui como metodo de
+     * conveniencia para nao quebrar os testes ja existentes que chamam
+     * pricingService.convertToUsd(...) diretamente.
      */
     public BigDecimal convertToUsd(BigDecimal presentValueBrlRounded, BigDecimal fxRateBrlPerUsd) {
-        return presentValueBrlRounded.divide(fxRateBrlPerUsd, INTERMEDIATE_PRECISION)
-                .setScale(SCALE, ROUNDING_MODE);
+        return currencyConverter.convert(presentValueBrlRounded, fxRateBrlPerUsd);
     }
 
     /** Resultado do calculo, com snapshot dos parametros usados (para auditoria). */

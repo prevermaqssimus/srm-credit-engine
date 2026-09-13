@@ -48,7 +48,8 @@ class PricingServiceEdgeCasesTest {
             new PricingStrategyFactory(List.<PricingStrategy>of(
                     new DuplicataMercantilPricingStrategy(),
                     new ChequePreDatadoPricingStrategy())),
-            new PricingProperties(new BigDecimal("0.01"))
+            new PricingProperties(new BigDecimal("0.01")),
+            new CurrencyConverter()
     );
 
     @Test
