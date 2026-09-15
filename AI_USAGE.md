@@ -96,4 +96,70 @@ avaliando risco do sacado + moeda + prazo para cada lote de duplicatas que chega
 
 Deságio é o desconto que se aplica ao valor de um título para comprá-lo (ou vendê-lo) antes do vencimento.
 
+## Caso concreto em que a IA errou
 
+Ao implementar o Passo 2 (configuração externalizada da taxa base), a IA
+criou o `PricingProperties.java` e ajustou o `CreditEngineApplication.java`,
+mas esqueceu de criar o `application.properties` — o arquivo que na
+verdade contém o valor real da taxa (`pricing.base-rate=0.01`). Sem ele, a
+configuração "externalizada" não tinha de onde ler nada. Percebi a falta e
+pedi a correção antes de commitar.
+
+Caso concreto em que a IA errou
+
+A IA sugeriu commitar o Passo 3 (teste vermelho) sozinho, numa branch própria, antes das outras peças existirem. Identifiquei que isso não funcionaria — o Passo 3 sozinho nunca compilaria, deixando o CI quebrado sem necessidade. Propus a solução: entregar os Passos 3, 4 e 5 juntos, na mesma branch, já que são as peças que se completam.
+
+## Caso concreto em que a IA errou (3)
+
+Ao implementar o extrato analítico (`SettlementRepository.findExtrato`), a IA escreveu
+a query usando o padrão `:param IS NULL OR coluna = :param` sem `CAST` explícito —
+funciona em H2 (usado nos testes automatizados), mas quebra em Postgres real com
+`could not determine data type of parameter`. O erro só foi detectado porque o extrato
+foi testado manualmente contra Postgres via Docker/Postman, não só via `mvn test`
+(que roda contra H2 e nunca acusaria esse problema). Corrigido adicionando `CAST`
+explícito de tipo em cada parâmetro opcional da query.
+
+## Caso concreto em que a IA errou (4)
+
+Ao corrigir o `docker-compose.yml` para sobrescrever a configuração de banco do
+container, a IA (eu) só adicionei a variável de ambiente `SPRING_DATASOURCE_URL`,
+sobrescrevendo a URL para apontar pro Postgres -- mas não sobrescrevi
+`DRIVER_CLASS_NAME`, `USERNAME` nem `PASSWORD`. Isso funcionou enquanto o
+`application.properties` tinha Postgres ativo (o driver já batia), mas quebrou
+assim que o arquivo foi revertido para H2 ativo (correção separada, para o CI) --
+o container passou a tentar usar o driver do H2 numa URL do Postgres, reproduzindo
+o mesmo erro `Driver org.h2.Driver claims to not accept jdbcUrl
+jdbc:postgresql://...` que já tínhamos corrigido antes, de outra forma. O erro só
+apareceu depois de eu testar via Docker e reportar o log de volta -- a IA não
+antecipou essa interação entre as duas mudanças (application.properties revertido
++ docker-compose.yml incompleto) até o log mostrar o problema. Corrigido
+  sobrescrevendo as 4 propriedades de datasource no `docker-compose.yml`, não só a
+  URL -- tornando o container independente do que estiver ativo localmente no
+  arquivo.
+
+## Caso concreto em que a IA errou (5)
+
+Ao implementar os 3 serviços novos (Simulação, Currency Engine, Extrato Analítico),
+a IA criou a coleção Postman já organizada em pastas próprias para cada um
+("Simulação (novo)", "Currency Engine (novo)", "Extrato Analítico (novo)"), mas não
+ajustou as anotações `@Tag` do Swagger da mesma forma -- o método `simulate()`
+ficou agrupado dentro da tag da classe `ReceivableController` ("Recebíveis"), e o
+método `extrato()` dentro da tag da classe `SettlementController` ("Liquidação"),
+em vez de cada um ter sua própria seção. Resultado: Postman e Swagger mostravam a
+mesma API organizada de dois jeitos diferentes -- quem testasse por um veria 5
+grupos, quem testasse pelo outro veria 3, dando uma impressão inconsistente da
+API dependendo da ferramenta usada. Percebi a diferença comparando print do
+Swagger com a estrutura de pastas do Postman lado a lado. Corrigido adicionando
+`@Tag` específica nos métodos `simulate()` e `extrato()`, sobrescrevendo a tag da
+classe só ali, para os dois agrupamentos ficarem idênticos (5 seções nos dois).
+
+## Caso concreto em que a IA errou (6)
+
+Ao instrumentar PricingService com a métrica pricing.calculation.duration (observabilidade,
+requisito Sênior), a IA adicionou MeterRegistry como 4º parâmetro do construtor, mudando sua assinatura -- 
+mas não verificou antes se havia testes que instanciam PricingService manualmente (via new PricingService(...), 
+fora do container do Spring), em vez de via injeção automática. Existiam 2: GoldenCasesTest e PricingServiceEdgeCasesTest.
+Os dois deixaram de compilar (constructor cannot be applied to given types), detectado imediatamente ao rodar mvn clean install
+-- antes de qualquer commit, sem impacto em produção, mas evidencia uma checagem que a IA deveria ter feito proativamente 
+(buscar por new PricingService( no projeto inteiro antes de mudar a assinatura do construtor), em vez de esperar o erro de compilação apontar o problema. 
+Corrigido adicionando new SimpleMeterRegistry() (implementação em memória do Micrometer, sem infraestrutura) como o 4º argumento nos dois testes.

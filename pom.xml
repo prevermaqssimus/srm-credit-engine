@@ -46,6 +46,22 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Logs estruturados (JSON) - Spring Boot 3.3.x não tem suporte
+        nativo a "structured logging" (isso só chegou na 3.4+), então
+        usamos o encoder JSON do Logback diretamente. Ver
+        src/main/resources/logback-spring.xml. -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
         <!-- Banco de producao -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -57,7 +73,6 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <!-- Resiliencia: retry / circuit breaker na integracao de cambio -->
@@ -74,11 +89,24 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- habilita o Swagger UI automaticamente, documentando os endpoints
+        que já anotamos com @Operation/@ApiResponse nos controllers.
+        -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+
         <!-- Testes -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
         </dependency>
     </dependencies>
 

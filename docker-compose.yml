@@ -1,0 +1,74 @@
+# Versao da sintaxe do Docker Compose -- define quais recursos estao
+# disponiveis no arquivo (nao precisa mudar isso).
+version: "3.9"
+
+services:
+  # ===========================================================================
+  # Servico 1: banco de dados PostgreSQL real (nao mais o H2 em memoria).
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine  # imagem oficial do Postgres, pronta, sem precisar construir nada
+    container_name: srm-credit-engine-db  # nome legivel do container (aparece no "docker ps")
+
+    restart: unless-stopped  # reinicia sozinho se cair ou se o Docker Desktop reiniciar,
+    # exceto se voce mesmo parou com "docker compose down"/"docker stop"
+
+    environment:
+      # Essas 3 variaveis sao lidas pela propria imagem do Postgres na
+      # primeira vez que ele sobe -- criam o banco, usuario e senha
+      # automaticamente.
+      POSTGRES_DB: creditengine
+      POSTGRES_USER: creditengine
+      POSTGRES_PASSWORD: creditengine
+
+    ports:
+      # Mapeia a porta 5432 do CONTAINER para a porta 5432 da SUA MAQUINA --
+      # e por isso que voce consegue conectar nele de fora (ex: DBeaver, psql).
+      - "5432:5432"
+
+    healthcheck:
+      # Verifica periodicamente se o Postgres ja esta pronto para aceitar
+      # conexoes -- e essa checagem que o servico "app" (abaixo) espera
+      # antes de tentar se conectar, evitando erro de "conexao recusada"
+      # por o Postgres ainda estar inicializando.
+      test: ["CMD-SHELL", "pg_isready -U creditengine"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # Servico 2: a sua aplicacao Java, construida a partir do Dockerfile.
+  # ===========================================================================
+  app:
+    build: .  # "construa a imagem usando o Dockerfile desta pasta" (nao usa imagem pronta)
+    container_name: srm-credit-engine-app
+
+    restart: unless-stopped  # mesma logica do servico postgres, acima
+
+    environment:
+      # IMPORTANTE: sobrescreve as 4 propriedades de datasource -- nao so a
+      # URL. Isso torna o container 100% independente do que estiver
+      # comentado/descomentado no application.properties (H2 ou Postgres) --
+      # o Docker SEMPRE usa Postgres, automaticamente, sem precisar editar o
+      # arquivo antes de gerar a imagem.
+      #
+      # Sem isso, se o application.properties estiver com o bloco H2 ativo
+      # (padrao para dev local), sobrescrever so a URL faz a aplicacao tentar
+      # usar o driver do H2 numa URL do Postgres -- erro
+      # "Driver org.h2.Driver claims to not accept jdbcUrl jdbc:postgresql://...".
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/creditengine
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_DATASOURCE_USERNAME: creditengine
+      SPRING_DATASOURCE_PASSWORD: creditengine
+
+    ports:
+      # Mapeia a porta 8080 do container para a porta 8080 da sua maquina --
+      # e por isso que voce consegue chamar http://localhost:8080 normalmente.
+      - "8080:8080"
+
+    depends_on:
+      postgres:
+        # So inicia o container "app" DEPOIS que o healthcheck do "postgres"
+        # confirmar que ele esta pronto -- evita a aplicacao tentar conectar
+        # num banco que ainda nao terminou de subir.
+        condition: service_healthy
