@@ -1,0 +1,226 @@
+{
+  "info": {
+    "name": "SRM Credit Engine",
+    "description": "Coleção de testes para os endpoints do SRM Credit Engine (Passo 14 do plano). Requer a aplicação rodando em http://localhost:8080 (mvn spring-boot:run).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "receivableId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "settlementId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Recebíveis",
+      "item": [
+        {
+          "name": "Cadastrar recebível (Duplicata Mercantil, BRL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"DUPLICATA_MERCANTIL\",\n  \"faceValue\": 100000,\n  \"termMonths\": 3,\n  \"paymentCurrency\": \"BRL\",\n  \"cedente\": \"Fábrica XYZ\",\n  \"sacado\": \"Loja ABC\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/receivables",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "receivables"]
+            }
+          }
+        },
+        {
+          "name": "Cadastrar recebível (Cheque Pré-datado, USD)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CHEQUE_PRE_DATADO\",\n  \"faceValue\": 25000,\n  \"termMonths\": 2,\n  \"paymentCurrency\": \"USD\",\n  \"cedente\": \"Comércio ABC\",\n  \"sacado\": \"Distribuidora DEF\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/receivables",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "receivables"]
+            }
+          }
+        },
+        {
+          "name": "Cadastrar recebível inválido (deve retornar 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"DUPLICATA_MERCANTIL\",\n  \"faceValue\": -100,\n  \"termMonths\": 0,\n  \"paymentCurrency\": \"BRL\",\n  \"cedente\": \"\",\n  \"sacado\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/receivables",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "receivables"]
+            }
+          }
+        },
+        {
+          "name": "Buscar recebível por ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/receivables/{{receivableId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "receivables", "{{receivableId}}"]
+            }
+          }
+        },
+        {
+          "name": "Buscar recebível inexistente (deve retornar 404)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/receivables/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "receivables", "999999"]
+            }
+          }
+        },
+        {
+          "name": "Listar todos os recebíveis",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/receivables",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "receivables"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Liquidações",
+      "item": [
+        {
+          "name": "Liquidar em BRL",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receivableId\": {{receivableId}},\n  \"currency\": \"BRL\",\n  \"idempotencyKey\": \"teste-postman-brl-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/settlements",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settlements"]
+            }
+          }
+        },
+        {
+          "name": "Liquidar em USD (cross-currency, chama API real de câmbio)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receivableId\": {{receivableId}},\n  \"currency\": \"USD\",\n  \"idempotencyKey\": \"teste-postman-usd-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/settlements",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settlements"]
+            }
+          }
+        },
+        {
+          "name": "Liquidar de novo com a MESMA chave (testa idempotência)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receivableId\": {{receivableId}},\n  \"currency\": \"BRL\",\n  \"idempotencyKey\": \"teste-postman-brl-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/settlements",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settlements"]
+            },
+            "description": "Reenvia a MESMA idempotencyKey do primeiro request de liquidação BRL. Deve retornar o MESMO settlement (mesmo ID), não criar um novo -- prova a idempotência (Passo 12) via HTTP de verdade."
+          }
+        },
+        {
+          "name": "Liquidar recebível inexistente (deve retornar 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receivableId\": 999999,\n  \"currency\": \"BRL\",\n  \"idempotencyKey\": \"teste-postman-404\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/settlements",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settlements"]
+            }
+          }
+        },
+        {
+          "name": "Liquidar recebível já liquidado (deve retornar 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receivableId\": {{receivableId}},\n  \"currency\": \"BRL\",\n  \"idempotencyKey\": \"chave-diferente-vai-dar-409\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/settlements",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settlements"]
+            },
+            "description": "Chave DIFERENTE da primeira liquidação, mas o mesmo receivableId, que já está SETTLED. Deve retornar 409 (ReceivableAlreadySettledException), não confundir com o teste de idempotência acima."
+          }
+        },
+        {
+          "name": "Buscar liquidação por ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/settlements/{{settlementId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settlements", "{{settlementId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
