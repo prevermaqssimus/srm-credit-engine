@@ -25,7 +25,7 @@ Se este fosse um ambiente produtivo real, as seguintes diretrizes seriam validad
 4. Qual o canal e o *SLA* de resposta esperado para esse alerta técnico (ex.: notificação à mesa de operações, integração com sistema de monitoramento)?
 5. Uma falha prolongada de todos os provedores de câmbio configura um incidente operacional (mesma categoria de gravidade do cenário do Anexo B). A política de comunicação com cedentes afetados — se, quando e como notificá-los — segue o protocolo de resposta a incidentes da mesa de operações, não é uma decisão tomada em tempo real pelo sistema.
 6. O endpoint de "atualização manual de taxas" (requisito 4.1.1) não foi implementado como escrita livre, por representar risco de manipulação de preço (uma taxa poderia ser inserida artificialmente sem verificação contra o mercado real). Em caso de falha de todos os provedores automáticos, o sistema não permite inserção manual de taxa em nenhum cenário — a liquidação é rejeitada com mensagem explícita de indisponibilidade do serviço de câmbio, e um alerta técnico é disparado
-7. (ver item 3). Essa decisão é consistente com o Critério de Aceite 
+7. (ver item 3). Essa decisão é consistente com o Critério de Aceite
 8. 4 (Auditabilidade): nenhuma liquidação já registrada é alterada, e nenhuma exceção manual é aberta no caminho crítico.
 
 ## 3. Decisões de Precisão Numérica e Dados
@@ -47,7 +47,11 @@ Se este fosse um ambiente produtivo real, as seguintes diretrizes seriam validad
 3. **Resiliência e Segurança:** Tratamento global de exceções, validação estrita de *payloads* (corpos de requisição) via *Bean Validation* (biblioteca de validação de dados do Java), e proteção contra concorrência (ex.: *Optimistic Locking* (Bloqueio Otimista) via `@Version` nas entidades).
 4. **Auditabilidade:** Toda liquidação gera um registro imutável com rastreabilidade completa (*timestamp* (carimbo de data/hora), taxa de câmbio efetiva, provedor que respondeu, usuário/sistema e valores nominais). Alterar uma liquidação registrada não é uma operação do sistema, em nenhum cenário.
 5. **Usabilidade:** A simulação de valor líquido no painel do operador responde em até 300ms, sem quebrar o fluxo de digitação. O operador consegue simular um recebível sem necessidade de treinamento ou consulta a documentação externa.
+
+   *Endpoint:* `POST /api/receivables/simulate` — mesmos campos de um recebível (tipo, valor de face, prazo, moeda), aplica o motor de precificação da Seção 1 sem persistir nada. Devolve valor presente, deságio e valor líquido (com taxa de câmbio real, se USD).
 6. **Desempenho:** O endpoint de liquidação responde em até 1s sob carga normal, incluindo a consulta de câmbio em tempo real. A rota de extrato de liquidação com filtros suporta paginação *server-side* (paginação no lado do servidor) sem degradação perceptível na escala de dados esperada para o case.enho:** O endpoint de liquidação responde em até 1s sob carga normal, incluindo a consulta de câmbio em tempo real. A rota de extrato de liquidação com filtros suporta paginação server-side sem degradação perceptível na escala de dados esperada para o case.
+
+   *Endpoint:* `GET /api/settlements` — filtros opcionais e combináveis (cedente, moeda, período). Paginação sempre server-side via `page`/`size`, nunca retorna a lista inteira.
 
 
 ## 5. Resiliência do Currency Engine (Motor de Câmbio) — Câmbio em Tempo Real
@@ -61,6 +65,8 @@ Se este fosse um ambiente produtivo real, as seguintes diretrizes seriam validad
 - **Auditoria da origem da taxa:** cada liquidação persiste a taxa, o *timestamp* (carimbo de data/hora) e qual dos dois provedores respondeu.
 
 - **Nota de escala:** este modelo (chamada síncrona por transação) é adequado ao escopo do *case* (desafio/estudo de caso), mas não escala para o cenário de 1 milhão de transações/minuto (nível Staff/*Tech Lead* [Líder Técnico]). Nesse cenário, a arquitetura migraria para memória temporária (*cache*) com tempo de vida curto (*TTL* — *Time To Live*) validado por verificação de desatualização (*staleness check*), mantendo os dois provedores/*circuit breaker* como fonte de atualização do *cache* — decisão de custo-benefício (*trade-off*) documentada em `DECISIONS.md`.
+
+- **Endpoint de consulta (`GET /api/exchange-rates/latest`):** requisito 4.1.1 exige "prover taxas" — este é o endpoint de leitura correspondente. Aceita `from`/`to` como parâmetros (moedas), consulta o provedor em tempo real (mesma política acima, sem cache) e retorna a taxa, o timestamp de obtenção e o nome do provedor que respondeu. Sem escrita manual (ver Seção 2, item 6).
 
 
 ## 6. Escopo e Nível Visado
