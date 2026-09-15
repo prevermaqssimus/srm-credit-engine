@@ -6,6 +6,7 @@ import com.srm.creditengine.pricing.strategy.ChequePreDatadoPricingStrategy;
 import com.srm.creditengine.pricing.strategy.DuplicataMercantilPricingStrategy;
 import com.srm.creditengine.pricing.strategy.PricingStrategy;
 import com.srm.creditengine.pricing.strategy.PricingStrategyFactory;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -53,7 +54,11 @@ class GoldenCasesTest {
             new PricingProperties(new BigDecimal("0.01")),
             // CurrencyConverter (Passo 9): extraido do PricingService, sem
             // dependencia externa -- instanciado direto, igual as strategies.
-            new CurrencyConverter()
+            new CurrencyConverter(),
+            // MeterRegistry (metrica pricing.calculation.duration): registro
+            // em memoria, sem infraestrutura nenhuma -- suficiente para este
+            // teste isolado, que so quer validar o CALCULO, nao a metrica em si.
+            new SimpleMeterRegistry()
     );
 
     @Test

@@ -61,3 +61,4 @@ datasource (`URL`, `DRIVER_CLASS_NAME`, `USERNAME`, `PASSWORD`) via variável de
 ambiente no `docker-compose.yml` — isso torna o container 100% independente do que
 estiver comentado/descomentado localmente no arquivo, sem necessidade de alternar
 manualmente antes de gerar a imagem.
+

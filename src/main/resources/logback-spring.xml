@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Logs estruturados (JSON) - requisito Sênior (SPEC.md/desafio-tecnico,
+    secao 6): "logs estruturados e ao menos 1-2 metricas de negocio".
+
+    Por que um arquivo Logback proprio, em vez do application.properties:
+    Spring Boot so ganhou suporte NATIVO a "structured logging"
+    (logging.structured.format.console=...) na versao 3.4 - este projeto
+    usa 3.3.4, entao configuramos o encoder JSON diretamente no Logback,
+    via a dependencia logstash-logback-encoder (ver pom.xml).
+
+    "spring-boot-logging.xml" eh incluido para preservar o comportamento
+    padrao do Spring Boot (cores, banner, etc.) nos profiles onde JSON nao
+    for necessario - aqui usamos ele so como base, e SUBSTITUIMOS o
+    appender de console por um que gera JSON.
+-->
+<configuration>
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProperty scope="context" name="appName" source="spring.application.name"/>
+
+    <!--
+        Appender de console em JSON - cada linha de log vira um objeto
+        JSON completo, pronto para ser consumido por ferramentas de
+        agregacao de log (ELK, Loki, CloudWatch, etc.) sem parsing
+        adicional. Campos incluidos: timestamp, nivel, logger, thread,
+        mensagem, stack trace (se houver), e MDC (contexto por
+        requisicao, se adicionado no futuro).
+    -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <customFields>{"application":"${appName}"}</customFields>
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <version>[ignore]</version>
+                <levelValue>[ignore]</levelValue>
+            </fieldNames>
+        </encoder>
+    </appender>
+
+    <!--
+        Perfil "default"/dev local: mantem o console legivel por humano
+        (mais facil de ler no terminal do IntelliJ, por exemplo) -
+        so ativa JSON quando explicitamente rodando via Docker/producao
+        (perfil "postgres", ver docker-compose.yml SPRING_PROFILES_ACTIVE).
+    -->
+    <springProfile name="!postgres">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="postgres">
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+    </springProfile>
+
+</configuration>

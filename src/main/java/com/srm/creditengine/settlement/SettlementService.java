@@ -9,6 +9,7 @@ import com.srm.creditengine.domain.model.Settlement;
 import com.srm.creditengine.pricing.PricingService;
 import com.srm.creditengine.receivable.repository.ReceivableRepository;
 import com.srm.creditengine.settlement.repository.SettlementRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,16 @@ import java.time.Clock;
  *   - Optimistic Locking sob CONCORRÊNCIA REAL (duas threads simultâneas)
  *     é o Passo 13 -- aqui a checagem de status já-liquidado é sequencial,
  *     não testada sob concorrência ainda.
+ *
+ * Observabilidade (requisito Sênior do desafio-tecnico, secao 6):
+ * "settlements.completed" conta liquidações NOVAS de fato concluídas --
+ * deliberadamente NÃO incrementado no caminho de replay de idempotência
+ * (linha ~65 abaixo), já que ali nenhuma liquidação nova aconteceu, só
+ * foi devolvido um registro já existente. Tag "currency" permite separar
+ * BRL de USD no /actuator/metrics, sem precisar de duas métricas
+ * distintas. Junto com "pricing.calculation.duration" (PricingService),
+ * são as 2 métricas de negócio exigidas pelo desafio -- ambas via
+ * Micrometer, independentes dos logs estruturados (logback-spring.xml).
  */
 @Service
 public class SettlementService {
@@ -50,6 +61,7 @@ public class SettlementService {
     private final SettlementRepository settlementRepository;
     private final ReceivableRepository receivableRepository;
     private final Clock clock;
+    private final MeterRegistry meterRegistry;
 
     // Nota (transparência): 'clock' é injetado mas ainda não é usado no corpo
     // deste método -- Receivable/Settlement geram seus timestamps
@@ -59,15 +71,17 @@ public class SettlementService {
     // futuro (ex: log de auditoria adicional).
 
     public SettlementService(PricingService pricingService,
-                              ExchangeRateProvider exchangeRateProvider,
-                              SettlementRepository settlementRepository,
-                              ReceivableRepository receivableRepository,
-                              Clock clock) {
+                             ExchangeRateProvider exchangeRateProvider,
+                             SettlementRepository settlementRepository,
+                             ReceivableRepository receivableRepository,
+                             Clock clock,
+                             MeterRegistry meterRegistry) {
         this.pricingService = pricingService;
         this.exchangeRateProvider = exchangeRateProvider;
         this.settlementRepository = settlementRepository;
         this.receivableRepository = receivableRepository;
         this.clock = clock;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional
@@ -127,6 +141,11 @@ public class SettlementService {
         // 4. Atualização de status do recebível, na MESMA transação (ACID).
         receivable.markAsSettled();
         receivableRepository.save(receivable);
+
+        // Métrica de negócio: conta só liquidações NOVAS (não replays de
+        // idempotência, que retornam antes de chegar aqui). Tag "currency"
+        // permite ver BRL/USD separadamente em /actuator/metrics.
+        meterRegistry.counter("settlements.completed", "currency", settlementCurrency.name()).increment();
 
         log.info("settlement_completed settlement_id={} receivable_id={} currency={} amount={} fx_rate={}",
                 saved.getId(), receivableId, settlementCurrency, finalAmount, fxRateUsed);

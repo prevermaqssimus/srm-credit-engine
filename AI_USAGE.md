@@ -152,3 +152,14 @@ API dependendo da ferramenta usada. Percebi a diferença comparando print do
 Swagger com a estrutura de pastas do Postman lado a lado. Corrigido adicionando
 `@Tag` específica nos métodos `simulate()` e `extrato()`, sobrescrevendo a tag da
 classe só ali, para os dois agrupamentos ficarem idênticos (5 seções nos dois).
+
+## Caso concreto em que a IA errou (6)
+
+Ao instrumentar PricingService com a métrica pricing.calculation.duration (observabilidade,
+requisito Sênior), a IA adicionou MeterRegistry como 4º parâmetro do construtor, mudando sua assinatura -- 
+mas não verificou antes se havia testes que instanciam PricingService manualmente (via new PricingService(...), 
+fora do container do Spring), em vez de via injeção automática. Existiam 2: GoldenCasesTest e PricingServiceEdgeCasesTest.
+Os dois deixaram de compilar (constructor cannot be applied to given types), detectado imediatamente ao rodar mvn clean install
+-- antes de qualquer commit, sem impacto em produção, mas evidencia uma checagem que a IA deveria ter feito proativamente 
+(buscar por new PricingService( no projeto inteiro antes de mudar a assinatura do construtor), em vez de esperar o erro de compilação apontar o problema. 
+Corrigido adicionando new SimpleMeterRegistry() (implementação em memória do Micrometer, sem infraestrutura) como o 4º argumento nos dois testes.

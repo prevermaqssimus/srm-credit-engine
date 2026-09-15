@@ -6,6 +6,7 @@ import com.srm.creditengine.pricing.strategy.ChequePreDatadoPricingStrategy;
 import com.srm.creditengine.pricing.strategy.DuplicataMercantilPricingStrategy;
 import com.srm.creditengine.pricing.strategy.PricingStrategy;
 import com.srm.creditengine.pricing.strategy.PricingStrategyFactory;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -49,7 +50,8 @@ class PricingServiceEdgeCasesTest {
                     new DuplicataMercantilPricingStrategy(),
                     new ChequePreDatadoPricingStrategy())),
             new PricingProperties(new BigDecimal("0.01")),
-            new CurrencyConverter()
+            new CurrencyConverter(),
+            new SimpleMeterRegistry()
     );
 
     @Test
