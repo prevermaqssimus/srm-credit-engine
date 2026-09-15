@@ -52,6 +52,16 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Logs estruturados (JSON) - Spring Boot 3.3.x não tem suporte
+        nativo a "structured logging" (isso só chegou na 3.4+), então
+        usamos o encoder JSON do Logback diretamente. Ver
+        src/main/resources/logback-spring.xml. -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
         <!-- Banco de producao -->
         <dependency>
             <groupId>org.postgresql</groupId>

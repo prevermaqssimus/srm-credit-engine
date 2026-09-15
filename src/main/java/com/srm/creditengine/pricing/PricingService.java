@@ -4,6 +4,8 @@ import com.srm.creditengine.config.PricingProperties;
 import com.srm.creditengine.domain.enums.ReceivableType;
 import com.srm.creditengine.pricing.strategy.PricingStrategy;
 import com.srm.creditengine.pricing.strategy.PricingStrategyFactory;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -30,6 +32,16 @@ import java.math.RoundingMode;
  * delegando a decisao de qual spread usar para a PricingStrategyFactory, e
  * a conversao de moeda para o CurrencyConverter -- nunca mistura as três
  * responsabilidades numa classe só.
+ *
+ * Observabilidade (requisito Sênior do desafio-tecnico, secao 6):
+ * "pricing.calculation.duration" mede quanto tempo o CALCULO EM SI leva
+ * (deliberadamente excluindo a validacao de termMonths, que é trivial e
+ * nao é o que queremos observar) -- disponivel em
+ * /actuator/metrics/pricing.calculation.duration, com percentis (p50/p95/
+ * p99) e contagem total de execucoes. Nao depende do logback-spring.xml
+ * (logs estruturados) nem é gerado a partir de logs -- Micrometer registra
+ * a duracao diretamente em memoria, no proprio codigo, sem passar por log
+ * nenhum. Ver DECISIONS.md para o porquê dos dois serem independentes.
  */
 @Service
 public class PricingService {
@@ -41,12 +53,17 @@ public class PricingService {
     private final PricingStrategyFactory strategyFactory;
     private final BigDecimal baseRate;
     private final CurrencyConverter currencyConverter;
+    private final Timer calculationTimer;
 
     public PricingService(PricingStrategyFactory strategyFactory, PricingProperties pricingProperties,
-                           CurrencyConverter currencyConverter) {
+                          CurrencyConverter currencyConverter, MeterRegistry meterRegistry) {
         this.strategyFactory = strategyFactory;
         this.baseRate = pricingProperties.baseRate();
         this.currencyConverter = currencyConverter;
+        this.calculationTimer = Timer.builder("pricing.calculation.duration")
+                .description("Tempo do motor de precificacao para calcular o valor presente (SPEC.md Secao 1)")
+                .publishPercentiles(0.5, 0.95, 0.99)
+                .register(meterRegistry);
     }
 
     /**
@@ -57,19 +74,23 @@ public class PricingService {
         if (termMonths < 1) {
             throw new IllegalArgumentException("Prazo deve ser de ao menos 1 mes");
         }
-        PricingStrategy strategy = strategyFactory.resolve(type);
-        BigDecimal spread = strategy.getSpread();
-        BigDecimal totalRate = baseRate.add(spread);
+        // Timer.recordCallable mede APENAS o bloco abaixo -- a validacao
+        // acima nao entra na metrica, de proposito (ver Javadoc da classe).
+        return calculationTimer.record(() -> {
+            PricingStrategy strategy = strategyFactory.resolve(type);
+            BigDecimal spread = strategy.getSpread();
+            BigDecimal totalRate = baseRate.add(spread);
 
-        BigDecimal onePlusRate = BigDecimal.ONE.add(totalRate, INTERMEDIATE_PRECISION);
-        BigDecimal denominator = onePlusRate.pow(termMonths, INTERMEDIATE_PRECISION);
+            BigDecimal onePlusRate = BigDecimal.ONE.add(totalRate, INTERMEDIATE_PRECISION);
+            BigDecimal denominator = onePlusRate.pow(termMonths, INTERMEDIATE_PRECISION);
 
-        BigDecimal presentValueRaw = faceValue.divide(denominator, INTERMEDIATE_PRECISION);
-        BigDecimal presentValueRounded = presentValueRaw.setScale(SCALE, ROUNDING_MODE);
+            BigDecimal presentValueRaw = faceValue.divide(denominator, INTERMEDIATE_PRECISION);
+            BigDecimal presentValueRounded = presentValueRaw.setScale(SCALE, ROUNDING_MODE);
 
-        BigDecimal discount = faceValue.setScale(SCALE, ROUNDING_MODE).subtract(presentValueRounded);
+            BigDecimal discount = faceValue.setScale(SCALE, ROUNDING_MODE).subtract(presentValueRounded);
 
-        return new PricingResult(presentValueRounded, discount, spread, baseRate);
+            return new PricingResult(presentValueRounded, discount, spread, baseRate);
+        });
     }
 
     /**
@@ -84,6 +105,6 @@ public class PricingService {
 
     /** Resultado do calculo, com snapshot dos parametros usados (para auditoria). */
     public record PricingResult(BigDecimal presentValueBrl, BigDecimal discountBrl,
-                                 BigDecimal spreadApplied, BigDecimal baseRateApplied) {
+                                BigDecimal spreadApplied, BigDecimal baseRateApplied) {
     }
 }
