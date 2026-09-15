@@ -62,6 +62,26 @@ public class Settlement {
     @Column(name = "idempotency_key", nullable = false, length = 100)
     private String idempotencyKey;
 
+    /**
+     * Snapshot do cedente do Receivable NO MOMENTO da liquidação. Denormalizado
+     * de propósito (em vez de join com Receivable) por dois motivos: (1) o
+     * registro de liquidação deve ser um retrato imutável e AUTOCONTIDO do que
+     * aconteceu, sem depender de o Receivable nunca mudar; (2) viabiliza o
+     * filtro por cedente no extrato analítico (SPEC.md 4.1.6) sem join.
+     */
+    @Column(name = "cedente", nullable = false)
+    private String cedente;
+
+    /**
+     * Nome do provedor de câmbio que respondeu esta liquidação -- null se
+     * liquidação em BRL (não consulta câmbio). SPEC.md Critério de Aceite 4
+     * (Auditabilidade) exige rastrear "qual dos dois provedores respondeu";
+     * este campo estava faltando antes -- ExchangeRateResult já carregava
+     * essa informação (providerName), mas ela nunca era persistida aqui.
+     */
+    @Column(name = "provider_used", length = 100)
+    private String providerUsed;
+
     @Column(name = "settled_at", nullable = false, updatable = false)
     private Instant settledAt;
 
@@ -69,17 +89,19 @@ public class Settlement {
         // JPA
     }
 
-    public Settlement(Long receivableId, BigDecimal faceValue, BigDecimal presentValueBrl,
+    public Settlement(Long receivableId, String cedente, BigDecimal faceValue, BigDecimal presentValueBrl,
                        BigDecimal discountBrl, BigDecimal finalAmount, Currency settlementCurrency,
-                       BigDecimal fxRateUsed, BigDecimal spreadApplied, BigDecimal baseRateApplied,
-                       String idempotencyKey) {
+                       BigDecimal fxRateUsed, String providerUsed, BigDecimal spreadApplied,
+                       BigDecimal baseRateApplied, String idempotencyKey) {
         this.receivableId = receivableId;
+        this.cedente = cedente;
         this.faceValue = faceValue;
         this.presentValueBrl = presentValueBrl;
         this.discountBrl = discountBrl;
         this.finalAmount = finalAmount;
         this.settlementCurrency = settlementCurrency;
         this.fxRateUsed = fxRateUsed;
+        this.providerUsed = providerUsed;
         this.spreadApplied = spreadApplied;
         this.baseRateApplied = baseRateApplied;
         this.idempotencyKey = idempotencyKey;
@@ -88,12 +110,14 @@ public class Settlement {
 
     public Long getId() { return id; }
     public Long getReceivableId() { return receivableId; }
+    public String getCedente() { return cedente; }
     public BigDecimal getFaceValue() { return faceValue; }
     public BigDecimal getPresentValueBrl() { return presentValueBrl; }
     public BigDecimal getDiscountBrl() { return discountBrl; }
     public BigDecimal getFinalAmount() { return finalAmount; }
     public Currency getSettlementCurrency() { return settlementCurrency; }
     public BigDecimal getFxRateUsed() { return fxRateUsed; }
+    public String getProviderUsed() { return providerUsed; }
     public BigDecimal getSpreadApplied() { return spreadApplied; }
     public BigDecimal getBaseRateApplied() { return baseRateApplied; }
     public String getIdempotencyKey() { return idempotencyKey; }

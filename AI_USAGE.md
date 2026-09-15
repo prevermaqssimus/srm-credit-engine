@@ -1,6 +1,3 @@
-
-
-
 Explique  o funcionamento e a logica por tras desse fragmento de conxto
 
 A SRM Asset é referência em fundos de investimento, especialmente FIDCs (Fundos de Investimento em Direitos Creditórios). Nossa operação envolve a aquisição de ativos (duplicatas, contratos, recebíveis) de empresas cedentes, provendo liquidez ao mercado.
@@ -112,5 +109,12 @@ Caso concreto em que a IA errou
 
 A IA sugeriu commitar o Passo 3 (teste vermelho) sozinho, numa branch própria, antes das outras peças existirem. Identifiquei que isso não funcionaria — o Passo 3 sozinho nunca compilaria, deixando o CI quebrado sem necessidade. Propus a solução: entregar os Passos 3, 4 e 5 juntos, na mesma branch, já que são as peças que se completam.
 
+## Caso concreto em que a IA errou (3)
 
-
+Ao implementar o extrato analítico (`SettlementRepository.findExtrato`), a IA escreveu
+a query usando o padrão `:param IS NULL OR coluna = :param` sem `CAST` explícito —
+funciona em H2 (usado nos testes automatizados), mas quebra em Postgres real com
+`could not determine data type of parameter`. O erro só foi detectado porque o extrato
+foi testado manualmente contra Postgres via Docker/Postman, não só via `mvn test`
+(que roda contra H2 e nunca acusaria esse problema). Corrigido adicionando `CAST`
+explícito de tipo em cada parâmetro opcional da query.

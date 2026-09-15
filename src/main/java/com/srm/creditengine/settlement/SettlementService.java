@@ -94,12 +94,14 @@ public class SettlementService {
 
         BigDecimal finalAmount;
         BigDecimal fxRateUsed = null;
+        String providerUsed = null;
 
         // 2. Se cross-currency, consulta câmbio real (ExchangeRateProvider)
         //    e delega a conversão ao PricingService/CurrencyConverter.
         if (settlementCurrency == Currency.USD) {
             ExchangeRateResult rate = exchangeRateProvider.getCurrentRate(Currency.USD, Currency.BRL);
             fxRateUsed = rate.rate();
+            providerUsed = rate.providerName();
             finalAmount = pricingService.convertToUsd(pricing.presentValueBrl(), fxRateUsed);
         } else {
             finalAmount = pricing.presentValueBrl();
@@ -108,12 +110,14 @@ public class SettlementService {
         // 3. Persistência do registro imutável.
         Settlement settlement = new Settlement(
                 receivable.getId(),
+                receivable.getCedente(),
                 receivable.getFaceValue(),
                 pricing.presentValueBrl(),
                 pricing.discountBrl(),
                 finalAmount,
                 settlementCurrency,
                 fxRateUsed,
+                providerUsed,
                 pricing.spreadApplied(),
                 pricing.baseRateApplied(),
                 idempotencyKey

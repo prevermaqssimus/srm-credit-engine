@@ -7,11 +7,11 @@ de câmbio externo) e `config` (propriedades externalizadas).
 - **Persistência:** JPA/Hibernate — a aplicação é agnóstica de banco por design; funciona
   tanto com **H2** (em memória) quanto com **PostgreSQL**, bastando apontar a configuração
   de datasource correta em `application.properties`.
-  - **Resiliência:** Resilience4j (retry com backoff exponencial + circuit breaker) protegendo
-    a chamada ao provedor externo de câmbio (`open.er-api.com`).
-  - **Taxa de precificação:** externalizada via `application.properties` (`pricing.base-rate`),
-    injetada por constructor binding (`PricingProperties`, record imutável) — sem valores
-    fixos no código-fonte.
+    - **Resiliência:** Resilience4j (retry com backoff exponencial + circuit breaker) protegendo
+      a chamada ao provedor externo de câmbio (`open.er-api.com`).
+    - **Taxa de precificação:** externalizada via `application.properties` (`pricing.base-rate`),
+      injetada por constructor binding (`PricingProperties`, record imutável) — sem valores
+      fixos no código-fonte.
 
 
 
@@ -40,6 +40,12 @@ passam contra H2.
 > aplicação contra um Postgres real (dentro do container) ainda está em processo de
 > confirmação. Esta seção será atualizada assim que a validação for concluída.
 
+> ✅ **Atualização:** validação concluída com sucesso após a correção de um bug
+> específico do Postgres na query do extrato analítico (ver `DECISIONS.md`, seção
+> "Bug encontrado ao validar o extrato contra Postgres real"). Os 21 cenários da
+> coleção Postman (11 originais + 10 dos 3 serviços novos) passam contra Postgres
+> real via Docker Compose.
+
 ### Como alternar entre os bancos
 
 O projeto usa uma única fonte de configuração (`application.properties`) com apenas um
@@ -58,7 +64,7 @@ spring.datasource.url=jdbc:postgresql://localhost:5432/creditengine
 ### Rodando via Docker
 
 ```bash
-docker compose up --build
+    docker compose up --build
 ```
 
 Sobe o Postgres e a aplicação juntos, orquestrados — atende ao requisito de "Docker +
