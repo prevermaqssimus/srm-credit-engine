@@ -1,0 +1,64 @@
+{
+  "info": {
+    "name": "SRM Credit Engine - Observabilidade",
+    "description": "Coleção separada da API de negócio -- dedicada exclusivamente ao Actuator/Micrometer (infraestrutura de operação, não endpoints de negócio). Requer a aplicação rodando em http://localhost:8080, com management.endpoints.web.exposure.include=health,metrics habilitado no application.properties. As 2 métricas de negócio (settlements.completed, pricing.calculation.duration) só aparecem depois de pelo menos 1 execução real -- rode a coleção principal (SRM Credit Engine) primeiro, pastas Simulação/Liquidações, antes desta.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/actuator/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["actuator", "health"]
+        },
+        "description": "Deve retornar {\"status\": \"UP\"}. Se der 404, a configuração do Actuator no application.properties não foi aplicada."
+      }
+    },
+    {
+      "name": "Listar todas as métricas disponíveis",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/actuator/metrics",
+          "host": ["{{baseUrl}}"],
+          "path": ["actuator", "metrics"]
+        },
+        "description": "Retorna um JSON com o campo 'names' -- confirme que 'settlements.completed' e 'pricing.calculation.duration' aparecem na lista."
+      }
+    },
+    {
+      "name": "Métrica: liquidações completadas (contador)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/actuator/metrics/settlements.completed",
+          "host": ["{{baseUrl}}"],
+          "path": ["actuator", "metrics", "settlements.completed"]
+        },
+        "description": "Contador incrementado por SettlementService, com tag 'currency' (BRL/USD). Só conta liquidações NOVAS -- não incrementa em replays de idempotência."
+      }
+    },
+    {
+      "name": "Métrica: duração do motor de precificação (timer)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/actuator/metrics/pricing.calculation.duration",
+          "host": ["{{baseUrl}}"],
+          "path": ["actuator", "metrics", "pricing.calculation.duration"]
+        },
+        "description": "Timer registrado por PricingService, com COUNT, TOTAL_TIME, MAX e percentis p50/p95/p99. Acionado tanto por /api/receivables/simulate quanto por POST /api/settlements."
+      }
+    }
+  ]
+}
