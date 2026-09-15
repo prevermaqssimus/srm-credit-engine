@@ -29,7 +29,7 @@ import java.time.Instant;
  */
 @RestController
 @RequestMapping("/api/settlements")
-@Tag(name = "Liquidação", description = "Liquidação de recebíveis com deságio, idempotente e auditável")
+@Tag(name = "Liquidações", description = "Liquidação de recebíveis com deságio, idempotente e auditável")
 public class SettlementController {
 
     private final SettlementService settlementService;
@@ -65,6 +65,7 @@ public class SettlementController {
     }
 
     @GetMapping
+    @Tag(name = "Extrato Analítico", description = "Consulta de liquidações com filtros e paginação server-side")
     @Operation(summary = "Extrato analítico de liquidações, com filtros e paginação server-side",
             description = "Requisito 4.1.6: filtro por período (startDate/endDate), cedente e moeda -- " +
                     "todos opcionais e combináveis. Paginação sempre server-side (Critério de Aceite 6 do " +
