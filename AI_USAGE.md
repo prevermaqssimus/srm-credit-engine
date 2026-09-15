@@ -118,3 +118,37 @@ funciona em H2 (usado nos testes automatizados), mas quebra em Postgres real com
 foi testado manualmente contra Postgres via Docker/Postman, não só via `mvn test`
 (que roda contra H2 e nunca acusaria esse problema). Corrigido adicionando `CAST`
 explícito de tipo em cada parâmetro opcional da query.
+
+## Caso concreto em que a IA errou (4)
+
+Ao corrigir o `docker-compose.yml` para sobrescrever a configuração de banco do
+container, a IA (eu) só adicionei a variável de ambiente `SPRING_DATASOURCE_URL`,
+sobrescrevendo a URL para apontar pro Postgres -- mas não sobrescrevi
+`DRIVER_CLASS_NAME`, `USERNAME` nem `PASSWORD`. Isso funcionou enquanto o
+`application.properties` tinha Postgres ativo (o driver já batia), mas quebrou
+assim que o arquivo foi revertido para H2 ativo (correção separada, para o CI) --
+o container passou a tentar usar o driver do H2 numa URL do Postgres, reproduzindo
+o mesmo erro `Driver org.h2.Driver claims to not accept jdbcUrl
+jdbc:postgresql://...` que já tínhamos corrigido antes, de outra forma. O erro só
+apareceu depois de eu testar via Docker e reportar o log de volta -- a IA não
+antecipou essa interação entre as duas mudanças (application.properties revertido
++ docker-compose.yml incompleto) até o log mostrar o problema. Corrigido
+  sobrescrevendo as 4 propriedades de datasource no `docker-compose.yml`, não só a
+  URL -- tornando o container independente do que estiver ativo localmente no
+  arquivo.
+
+## Caso concreto em que a IA errou (5)
+
+Ao implementar os 3 serviços novos (Simulação, Currency Engine, Extrato Analítico),
+a IA criou a coleção Postman já organizada em pastas próprias para cada um
+("Simulação (novo)", "Currency Engine (novo)", "Extrato Analítico (novo)"), mas não
+ajustou as anotações `@Tag` do Swagger da mesma forma -- o método `simulate()`
+ficou agrupado dentro da tag da classe `ReceivableController` ("Recebíveis"), e o
+método `extrato()` dentro da tag da classe `SettlementController` ("Liquidação"),
+em vez de cada um ter sua própria seção. Resultado: Postman e Swagger mostravam a
+mesma API organizada de dois jeitos diferentes -- quem testasse por um veria 5
+grupos, quem testasse pelo outro veria 3, dando uma impressão inconsistente da
+API dependendo da ferramenta usada. Percebi a diferença comparando print do
+Swagger com a estrutura de pastas do Postman lado a lado. Corrigido adicionando
+`@Tag` específica nos métodos `simulate()` e `extrato()`, sobrescrevendo a tag da
+classe só ali, para os dois agrupamentos ficarem idênticos (5 seções nos dois).

@@ -42,8 +42,8 @@ public class ReceivableController {
     private final ExchangeRateProvider exchangeRateProvider;
 
     public ReceivableController(ReceivableRepository receivableRepository,
-                                 PricingService pricingService,
-                                 ExchangeRateProvider exchangeRateProvider) {
+                                PricingService pricingService,
+                                ExchangeRateProvider exchangeRateProvider) {
         this.receivableRepository = receivableRepository;
         this.pricingService = pricingService;
         this.exchangeRateProvider = exchangeRateProvider;
@@ -78,6 +78,7 @@ public class ReceivableController {
     }
 
     @PostMapping("/simulate")
+    @Tag(name = "Simulação", description = "Preview de valor líquido, sem persistir nada")
     @Operation(summary = "Simula o valor líquido de um recebível, sem persistir nada",
             description = "Usado pelo painel do operador para dar feedback em tempo real enquanto o " +
                     "recebível está sendo preenchido (SPEC.md, Critério de Aceite 5: resposta em até 300ms " +
