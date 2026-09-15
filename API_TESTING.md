@@ -23,9 +23,9 @@ docs/postman/SRM-Credit-Engine.postman_collection.json
 1. Abra o Postman
 2. **File → Import** (ou o botão **"Import"** no canto superior esquerdo)
 3. Arraste o arquivo `docs/postman/SRM-Credit-Engine.postman_collection.json` (ou navegue até ele pelo seletor de arquivos)
-4. A coleção **"SRM Credit Engine"** aparece na sua lista, já organizada em 2 pastas
+4. A coleção **"SRM Credit Engine"** aparece na sua lista, já organizada em 5 pastas
 
-### O que está dentro — 11 requisições, organizadas em 2 pastas
+### O que está dentro — 21 requisições, organizadas em 5 pastas
 
 **📁 Recebíveis**
 - Cadastrar (Duplicata Mercantil, BRL)
@@ -35,6 +35,15 @@ docs/postman/SRM-Credit-Engine.postman_collection.json
 - Buscar inexistente — testa 404
 - Listar todos
 
+**📁 Simulação**
+- Simular recebível em BRL
+- Simular recebível em USD — chama a API real de câmbio
+- Simular com payload inválido — testa a validação (400)
+
+**📁 Currency Engine**
+- Consultar taxa vigente USD → BRL
+- Consultar taxa vigente (usando defaults, sem query params)
+
 **📁 Liquidações**
 - Liquidar em BRL
 - Liquidar em USD — chama a API real de câmbio
@@ -42,6 +51,13 @@ docs/postman/SRM-Credit-Engine.postman_collection.json
 - Liquidar recebível inexistente — testa 404
 - Liquidar recebível já liquidado — testa 409
 - Buscar liquidação por ID
+
+**📁 Extrato Analítico**
+- Extrato completo, sem filtro
+- Extrato filtrado por moeda
+- Extrato filtrado por cedente
+- Extrato filtrado por período
+- Extrato paginado
 
 ### Variáveis já configuradas
 

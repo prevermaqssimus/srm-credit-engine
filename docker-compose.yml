@@ -46,17 +46,20 @@ services:
     restart: unless-stopped  # mesma logica do servico postgres, acima
 
     environment:
-      # Ativa o perfil "postgres" do application.properties (o bloco
-      # separado por "#---" que ja configuramos) -- sem isso, a aplicacao
-      # continuaria tentando usar H2.
-      SPRING_PROFILES_ACTIVE: postgres
-
-      # Sobrescreve a URL do banco: o profile "postgres" no
-      # application.properties aponta para "localhost" (valido rodando
-      # FORA do Docker) -- mas DENTRO da rede do Compose, o nome do
-      # servico ("postgres") funciona como se fosse o "endereco" dele,
-      # nao "localhost".
+      # IMPORTANTE: sobrescreve as 4 propriedades de datasource -- nao so a
+      # URL. Isso torna o container 100% independente do que estiver
+      # comentado/descomentado no application.properties (H2 ou Postgres) --
+      # o Docker SEMPRE usa Postgres, automaticamente, sem precisar editar o
+      # arquivo antes de gerar a imagem.
+      #
+      # Sem isso, se o application.properties estiver com o bloco H2 ativo
+      # (padrao para dev local), sobrescrever so a URL faz a aplicacao tentar
+      # usar o driver do H2 numa URL do Postgres -- erro
+      # "Driver org.h2.Driver claims to not accept jdbcUrl jdbc:postgresql://...".
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/creditengine
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_DATASOURCE_USERNAME: creditengine
+      SPRING_DATASOURCE_PASSWORD: creditengine
 
     ports:
       # Mapeia a porta 8080 do container para a porta 8080 da sua maquina --

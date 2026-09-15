@@ -24,7 +24,6 @@ Ambas as configurações estão confirmadas funcionando — H2 no fluxo de desen
 
 Alternar entre os dois bancos é uma ação manual (comentar/descomentar o bloco no arquivo), não automática por perfil — ver ADR 0002 para a justificativa dessa escolha e as alternativas avaliadas.
 
-
 ## 3 serviços especificados de forma incompleta na SPEC inicial
 
 Ao começar o frontend, percebi que 3 endpoints que o frontend precisava consumir
@@ -36,3 +35,29 @@ Critérios de Aceite 5 e 6, sem desenhar o endpoint em si).
 Implementei os 3 numa única branch (`feature/currency-extrato-simulacao`, a partir de
 `develop`) e completei a especificação técnica de cada um diretamente no `SPEC.md`
 (Seção 5 e Critérios 5/6), marcada como adendo posterior à redação inicial.
+
+## Bug encontrado ao validar o extrato contra Postgres real
+
+Durante a validação do extrato analítico (um dos 3 serviços novos) via Docker/Postman,
+a query `findExtrato` funcionou normalmente contra H2 (usado nos testes automatizados),
+mas quebrou contra Postgres real com o erro `could not determine data type of parameter
+$5`. A causa: o padrão `:param IS NULL OR coluna = :param` não dá ao driver do Postgres
+informação suficiente de tipo quando o parâmetro só aparece do lado do `IS NULL` — H2 é
+mais tolerante com isso, Postgres não. Corrigido adicionando `CAST(:param AS tipo)`
+explícito em cada filtro opcional da query. Identificado só porque o extrato foi
+testado manualmente contra Postgres, não só via testes automatizados (que rodam contra
+H2) — reforça por que a validação manual via Docker continua necessária além do `mvn
+test`.
+
+## Bug encontrado ao reativar Postgres no docker-compose após reverter para H2
+
+Depois de reverter o `application.properties` para H2 ativo (correção do CI, ver
+histórico do Git), o `docker-compose.yml` continuava sobrescrevendo só a
+`SPRING_DATASOURCE_URL` via variável de ambiente — não o driver, usuário ou senha.
+Resultado: o container `app` tentava usar o driver do H2 numa URL do Postgres,
+reproduzindo o mesmo erro já corrigido antes (`Driver org.h2.Driver claims to not
+accept jdbcUrl jdbc:postgresql://...`). Corrigido sobrescrevendo as 4 propriedades de
+datasource (`URL`, `DRIVER_CLASS_NAME`, `USERNAME`, `PASSWORD`) via variável de
+ambiente no `docker-compose.yml` — isso torna o container 100% independente do que
+estiver comentado/descomentado localmente no arquivo, sem necessidade de alternar
+manualmente antes de gerar a imagem.
