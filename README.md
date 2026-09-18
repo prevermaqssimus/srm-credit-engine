@@ -106,7 +106,8 @@ local). Não precisa instalar nem configurar nenhum banco separadamente.
 
 Confirme que subiu:
 ```
-http://localhost:8080/actuator/health
+http://localhost:8080/swagger-ui/index.html#/
+http://localhost:8080/actuator/health 
 ```
 Deve responder `{"status":"UP"}`.
 
